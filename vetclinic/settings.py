@@ -1,3 +1,5 @@
+# vetclinic/settings.py - добавьте или замените эти строки
+
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -15,14 +17,12 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     RAILWAY_DOMAIN,
-    '*',  # временно для теста
+    '*',
 ]
 
-# CSRF доверенные источники
 CSRF_TRUSTED_ORIGINS = [
     'https://' + RAILWAY_DOMAIN,
     'http://' + RAILWAY_DOMAIN,
-    'https://web-production-2d83b1.up.railway.app',
 ]
 
 INSTALLED_APPS = [
@@ -31,7 +31,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.staticfiles',  # обязательно оставить
     'rest_framework',
     'rest_framework_simplejwt',
     'users',
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ДОБАВИТЬ ЭТУ СТРОКУ!
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -86,9 +87,13 @@ TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+# НАСТРОЙКИ СТАТИКИ - ВАЖНО!
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise для статики
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -114,5 +119,4 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-# Railway
 PORT = os.environ.get('PORT', 8000)
