@@ -20,6 +20,11 @@ def user_login(request):
     return render(request, 'users/login.html')
 
 
+
+
+from django.db import IntegrityError
+
+
 def signup(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -32,20 +37,35 @@ def signup(request):
             messages.error(request, 'Пароли не совпадают')
             return render(request, 'users/signup.html')
 
+        # Проверка уникальности username
         if CustomUser.objects.filter(username=username).exists():
             messages.error(request, 'Пользователь с таким именем уже существует')
             return render(request, 'users/signup.html')
 
-        user = CustomUser.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            phone=phone,
-            role='CLIENT'
-        )
-        login(request, user)
-        messages.success(request, 'Регистрация успешна!')
-        return redirect('index')
+        # Проверка уникальности email
+        if CustomUser.objects.filter(email=email).exists():
+            messages.error(request, 'Пользователь с таким email уже зарегистрирован')
+            return render(request, 'users/signup.html')
+
+        # Проверка уникальности телефона (если указан)
+        if phone and CustomUser.objects.filter(phone=phone).exists():
+            messages.error(request, 'Пользователь с таким номером телефона уже зарегистрирован')
+            return render(request, 'users/signup.html')
+
+        try:
+            user = CustomUser.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                phone=phone,
+                role='CLIENT'
+            )
+            login(request, user)
+            messages.success(request, 'Регистрация успешна!')
+            return redirect('index')
+        except IntegrityError:
+            messages.error(request, 'Ошибка при регистрации. Возможно, email или телефон уже используются.')
+            return render(request, 'users/signup.html')
 
     return render(request, 'users/signup.html')
 
