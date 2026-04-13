@@ -4,9 +4,9 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-vetclinic-key-2024')
+SECRET_KEY = 'django-insecure-vetclinic-key-2024'
 
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -53,7 +53,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'vetclinic.wsgi.application'
 
-# База данных — Timeweb даст свою
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -99,3 +98,6 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
+
+# Настройки для Railway
+PORT = os.environ.get('PORT', 8000)
