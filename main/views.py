@@ -12,16 +12,17 @@ def index(request):
     news_list = News.objects.filter(is_active=True)[:6]
     return render(request, 'main/index.html', {'news_list': news_list})
 
+
 def get_available_slots(request, doctor_id):
 
-    # Получаем врача
-    doctor = get_object_or_404(CustomUser, id=doctor_id, role='DOCTOR')
+    try:
+        doctor = CustomUser.objects.get(id=doctor_id, role='DOCTOR')
+    except CustomUser.DoesNotExist:
+        return JsonResponse([], safe=False)
 
-    # Начало и конец периода (30 дней)
     start_date = datetime.now().date()
     end_date = start_date + timedelta(days=30)
 
-    # Получаем все свободные окна врача
     free_slots = DoctorSchedule.objects.filter(
         doctor=doctor,
         date__gte=start_date,
@@ -29,27 +30,25 @@ def get_available_slots(request, doctor_id):
         is_available=True
     ).order_by('date', 'start_time')
 
-    # Получаем уже занятые записи на эти даты и время
     appointments = Appointment.objects.filter(
         doctor=doctor,
         appointment_date__date__gte=start_date,
         appointment_date__date__lte=end_date,
         status__in=['PENDING', 'CONFIRMED']
-    ).values_list('appointment_date', flat=True)
+    )
 
-    # Формируем список занятых слотов
     busy_slots = set()
     for app in appointments:
-        busy_slots.add(app.strftime('%Y-%m-%d %H:%M'))
+        busy_slots.add(app.appointment_date.strftime('%Y-%m-%d %H:%M'))
 
-    # Формируем список свободных слотов
     available_slots = []
+    now = datetime.now()
+
     for slot in free_slots:
         slot_datetime = datetime.combine(slot.date, slot.start_time)
         slot_str = slot_datetime.strftime('%Y-%m-%d %H:%M')
 
-        # Проверяем, не занят ли слот
-        if slot_str not in busy_slots and slot_datetime > datetime.now():
+        if slot_datetime > now and slot_str not in busy_slots:
             available_slots.append({
                 'value': slot_datetime.isoformat(),
                 'label': slot.date.strftime('%d.%m.%Y') + ' ' + slot.start_time.strftime('%H:%M')
