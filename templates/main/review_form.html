@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Оставить отзыв{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 600px; margin: 0 auto;">
+    <h2>Оставить отзыв</h2>
+    
+    <div style="margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 15px;">
+        <p><strong>Врач:</strong> {{ appointment.doctor.username }}</p>
+        <p><strong>Питомец:</strong> {{ appointment.pet_name }}</p>
+        <p><strong>Дата приёма:</strong> {{ appointment.appointment_date|date:"d.m.Y H:i" }}</p>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Оценка</label>
+            <select name="rating" class="form-control" required>
+                <option value="">Выберите оценку</option>
+                <option value="5">5 - Отлично</option>
+                <option value="4">4 - Хорошо</option>
+                <option value="3">3 - Удовлетворительно</option>
+                <option value="2">2 - Плохо</option>
+                <option value="1">1 - Ужасно</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Ваш комментарий</label>
+            <textarea name="comment" class="form-control" rows="5" required placeholder="Расскажите о вашем опыте..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Отправить отзыв</button>
+        <a href="{% url 'profile' %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}

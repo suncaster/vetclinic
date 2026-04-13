@@ -1,0 +1,38 @@
+<div class="glass-card">
+    <h3 style="margin-bottom: 20px;">Мои записи</h3>
+    {% if appointments %}
+        <div class="glass-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Врач</th>
+                        <th>Питомец</th>
+                        <th>Дата</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appointment in appointments %}
+                    <tr>
+                        <td>{{ appointment.doctor.username }}</td>
+                        <td>{{ appointment.pet_name }} ({{ appointment.pet_type }})</td>
+                        <td>{{ appointment.appointment_date|date:"d.m.Y H:i" }}</td>
+                        <td><span class="status-badge status-{{ appointment.status|lower }}">{{ appointment.get_status_display }}</span></td>
+                        <td>
+                            {% if appointment.status == 'COMPLETED' and not appointment.review %}
+                                <a href="{% url 'create_review' appointment.id %}" class="btn">Оставить отзыв</a>
+                            {% elif appointment.status == 'PENDING' %}
+                                <a href="{% url 'cancel_appointment' appointment.id %}" class="btn delete-confirm">Отменить</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>У вас пока нет записей.</p>
+        <a href="{% url 'appointment_create' %}" class="btn btn-primary" style="margin-top: 15px;">Записаться на приём</a>
+    {% endif %}
+</div>

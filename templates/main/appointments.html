@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Мои записи{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <h2>Мои записи на приём</h2>
+</div>
+
+<div class="glass-card" style="margin-top: 20px;">
+    {% if appointments %}
+        <div class="glass-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{% if user.role == 'DOCTOR' %}Клиент{% else %}Врач{% endif %}</th>
+                        <th>Питомец</th>
+                        <th>Дата и время</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appointment in appointments %}
+                    <tr>
+                        <td>
+                            {% if user.role == 'DOCTOR' %}
+                                {{ appointment.client.username }}
+                            {% else %}
+                                {{ appointment.doctor.username }}
+                            {% endif %}
+                        </td>
+                        <td>{{ appointment.pet_name }} ({{ appointment.pet_type }})</td>
+                        <td>{{ appointment.appointment_date|date:"d.m.Y H:i" }}</td>
+                        <td><span class="status-badge status-{{ appointment.status|lower }}">{{ appointment.get_status_display }}</span></td>
+                        <td>
+                            {% if user.role == 'DOCTOR' %}
+                                {% if appointment.status == 'PENDING' or appointment.status == 'CONFIRMED' %}
+                                    <a href="{% url 'complete_appointment' appointment.id %}" class="btn">Проведён</a>
+                                {% endif %}
+                                <a href="{% url 'reschedule_appointment' appointment.id %}" class="btn">Перенести</a>
+                            {% else %}
+                                {% if appointment.status == 'PENDING' %}
+                                    <a href="{% url 'cancel_appointment' appointment.id %}" class="btn delete-confirm">Отменить</a>
+                                {% endif %}
+                                {% if appointment.status == 'COMPLETED' and not appointment.review %}
+                                    <a href="{% url 'create_review' appointment.id %}" class="btn">Оставить отзыв</a>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>У вас пока нет записей.</p>
+        {% if user.role == 'CLIENT' %}
+            <a href="{% url 'appointment_create' %}" class="btn btn-primary" style="margin-top: 15px;">Записаться на приём</a>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

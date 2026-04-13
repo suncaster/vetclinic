@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Запись на приём{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 600px; margin: 0 auto;">
+    <h2 style="margin-bottom: 30px;">Запись на приём</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Выберите врача</label>
+            <select name="doctor_id" class="form-control" required>
+                <option value="">-- Выберите --</option>
+                {% for doctor in doctors %}
+                <option value="{{ doctor.id }}">{{ doctor.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Кличка питомца</label>
+            <input type="text" name="pet_name" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label>Вид животного</label>
+            <input type="text" name="pet_type" class="form-control" required placeholder="Собака, кошка и т.д.">
+        </div>
+        <div class="form-group">
+            <label>Дата и время</label>
+            <input type="datetime-local" name="appointment_date" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label>Симптомы</label>
+            <textarea name="symptoms" class="form-control" rows="4"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Записаться</button>
+        <a href="{% url 'index' %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}

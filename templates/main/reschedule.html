@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Перенос записи{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 500px; margin: 0 auto;">
+    <h2>📅 Перенос записи</h2>
+    
+    <div style="margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 15px;">
+        <p><strong>Клиент:</strong> {{ appointment.client.username }}</p>
+        <p><strong>Питомец:</strong> {{ appointment.pet_name }} ({{ appointment.pet_type }})</p>
+        <p><strong>Текущая дата:</strong> {{ appointment.appointment_date|date:"d.m.Y H:i" }}</p>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Новая дата и время</label>
+            <input type="datetime-local" name="new_date" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Подтвердить перенос</button>
+        <a href="{% url 'my_appointments' %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}

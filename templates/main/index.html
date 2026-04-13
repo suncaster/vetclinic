@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Главная - Ветклиника{% endblock %}
+
+{% block content %}
+<div class="index-content">
+    <div class="glass-card" style="text-align: center; margin-bottom: 40px; padding: 40px;">
+        <h1>Ветеринарная клиника доктора Иванова</h1>
+        <p style="font-size: 1.2em; margin-top: 15px;">Забота о ваших питомцах - наша главная задача</p>
+        
+        {% if not user.is_authenticated %}
+            <div style="margin-top: 25px;">
+                <a href="{% url 'login' %}" class="btn btn-primary">Войти</a>
+                <a href="{% url 'signup' %}" class="btn">Регистрация</a>
+            </div>
+        {% elif user.role == 'CLIENT' %}
+            <div style="margin-top: 25px;">
+                <a href="{% url 'appointment_create' %}" class="btn btn-primary">Записаться на приём</a>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="news-grid">
+        {% for news in news_list %}
+        <div class="news-card">
+            {% if news.image %}
+                <img src="{{ news.image.url }}" alt="{{ news.title }}">
+            {% else %}
+                <img src="https://via.placeholder.com/400x220?text=News" alt="Новость">
+            {% endif %}
+            <div class="news-content">
+                <h3>{{ news.title }}</h3>
+                <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 10px;">{{ news.created_at|date:"d.m.Y" }}</div>
+                <p>{{ news.content|truncatewords:40 }}</p>
+            </div>
+        </div>
+        {% empty %}
+        <div class="news-card">
+            <img src="https://via.placeholder.com/400x220?text=Clinic" alt="Клиника">
+            <div class="news-content">
+                <h3>Открытие новой клиники</h3>
+                <p>Мы рады сообщить об открытии нашего нового филиала.</p>
+            </div>
+        </div>
+        <div class="news-card">
+            <img src="https://via.placeholder.com/400x220?text=Discount" alt="Акция">
+            <div class="news-content">
+                <h3>Скидка на первичный приём</h3>
+                <p>Только в этом месяце скидка на первичную консультацию.</p>
+            </div>
+        </div>
+        <div class="news-card">
+            <img src="https://via.placeholder.com/400x220?text=Award" alt="Достижение">
+            <div class="news-content">
+                <h3>Лучшая ветклиника 2024</h3>
+                <p>Наша клиника признана лучшей в городе.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
