@@ -17,4 +17,5 @@ urlpatterns = [
     path('news/<int:pk>/delete/', views.delete_news, name='delete_news'),
     path('schedule/add/', views.add_schedule, name='add_schedule'),
     path('user/<int:pk>/delete/', views.delete_user, name='delete_user'),
+    path('api/available-slots/<int:doctor_id>/', views.get_available_slots, name='api_available_slots'),
 ]

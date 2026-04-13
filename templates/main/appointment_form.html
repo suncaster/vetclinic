@@ -3,36 +3,92 @@
 
 {% block content %}
 <div class="glass-card" style="max-width: 600px; margin: 0 auto;">
-    <h2 style="margin-bottom: 30px;">Запись на приём</h2>
-    <form method="post">
+    <h2>Запись на приём</h2>
+    <form method="post" id="appointmentForm">
         {% csrf_token %}
+        
         <div class="form-group">
             <label>Выберите врача</label>
-            <select name="doctor_id" class="form-control" required>
-                <option value="">-- Выберите --</option>
+            <select name="doctor_id" id="doctorSelect" class="form-control" required>
+                <option value="">-- Выберите врача --</option>
                 {% for doctor in doctors %}
                 <option value="{{ doctor.id }}">{{ doctor.username }}</option>
                 {% endfor %}
             </select>
         </div>
+        
+        <div class="form-group">
+            <label>Свободное время</label>
+            <select name="appointment_date" id="slotSelect" class="form-control" required disabled>
+                <option value="">-- Сначала выберите врача --</option>
+            </select>
+        </div>
+        
         <div class="form-group">
             <label>Кличка питомца</label>
             <input type="text" name="pet_name" class="form-control" required>
         </div>
+        
         <div class="form-group">
             <label>Вид животного</label>
             <input type="text" name="pet_type" class="form-control" required placeholder="Собака, кошка и т.д.">
         </div>
-        <div class="form-group">
-            <label>Дата и время</label>
-            <input type="datetime-local" name="appointment_date" class="form-control" required>
-        </div>
+        
         <div class="form-group">
             <label>Симптомы</label>
             <textarea name="symptoms" class="form-control" rows="4"></textarea>
         </div>
-        <button type="submit" class="btn btn-primary">Записаться</button>
+        
+        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Записаться</button>
         <a href="{% url 'index' %}" class="btn">Отмена</a>
     </form>
 </div>
+
+<script>
+document.getElementById('doctorSelect').addEventListener('change', function() {
+    const doctorId = this.value;
+    const slotSelect = document.getElementById('slotSelect');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (!doctorId) {
+        slotSelect.innerHTML = '<option value="">-- Сначала выберите врача --</option>';
+        slotSelect.disabled = true;
+        submitBtn.disabled = true;
+        return;
+    }
+    
+    // Показываем загрузку
+    slotSelect.innerHTML = '<option value="">Загрузка свободных окон...</option>';
+    slotSelect.disabled = true;
+    submitBtn.disabled = true;
+    
+    // Загружаем свободные окна
+    fetch(`/api/available-slots/${doctorId}/`)
+        .then(response => response.json())
+        .then(slots => {
+            if (slots.length === 0) {
+                slotSelect.innerHTML = '<option value="">Нет свободных окон на ближайшие 30 дней</option>';
+                slotSelect.disabled = true;
+                submitBtn.disabled = true;
+            } else {
+                let options = '<option value="">-- Выберите время --</option>';
+                slots.forEach(slot => {
+                    options += `<option value="${slot.value}">${slot.label}</option>`;
+                });
+                slotSelect.innerHTML = options;
+                slotSelect.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            slotSelect.innerHTML = '<option value="">Ошибка загрузки. Попробуйте позже.</option>';
+            slotSelect.disabled = true;
+        });
+});
+
+document.getElementById('slotSelect').addEventListener('change', function() {
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = !this.value;
+});
+</script>
 {% endblock %}

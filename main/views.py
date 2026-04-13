@@ -4,30 +4,106 @@ from django.contrib import messages
 from django.utils import timezone
 from .models import News, Appointment, Review, DoctorSchedule
 from users.models import CustomUser
-
+from django.http import JsonResponse
+from datetime import datetime, timedelta
+from .models import DoctorSchedule, Appointment
 
 def index(request):
     news_list = News.objects.filter(is_active=True)[:6]
     return render(request, 'main/index.html', {'news_list': news_list})
+
+def get_available_slots(request, doctor_id):
+
+    # Получаем врача
+    doctor = get_object_or_404(CustomUser, id=doctor_id, role='DOCTOR')
+
+    # Начало и конец периода (30 дней)
+    start_date = datetime.now().date()
+    end_date = start_date + timedelta(days=30)
+
+    # Получаем все свободные окна врача
+    free_slots = DoctorSchedule.objects.filter(
+        doctor=doctor,
+        date__gte=start_date,
+        date__lte=end_date,
+        is_available=True
+    ).order_by('date', 'start_time')
+
+    # Получаем уже занятые записи на эти даты и время
+    appointments = Appointment.objects.filter(
+        doctor=doctor,
+        appointment_date__date__gte=start_date,
+        appointment_date__date__lte=end_date,
+        status__in=['PENDING', 'CONFIRMED']
+    ).values_list('appointment_date', flat=True)
+
+    # Формируем список занятых слотов
+    busy_slots = set()
+    for app in appointments:
+        busy_slots.add(app.strftime('%Y-%m-%d %H:%M'))
+
+    # Формируем список свободных слотов
+    available_slots = []
+    for slot in free_slots:
+        slot_datetime = datetime.combine(slot.date, slot.start_time)
+        slot_str = slot_datetime.strftime('%Y-%m-%d %H:%M')
+
+        # Проверяем, не занят ли слот
+        if slot_str not in busy_slots and slot_datetime > datetime.now():
+            available_slots.append({
+                'value': slot_datetime.isoformat(),
+                'label': slot.date.strftime('%d.%m.%Y') + ' ' + slot.start_time.strftime('%H:%M')
+            })
+
+    return JsonResponse(available_slots, safe=False)
 
 
 @login_required
 def appointment_create(request):
     if request.method == 'POST':
         doctor_id = request.POST.get('doctor_id')
+        appointment_date = request.POST.get('appointment_date')  # теперь приходит из select
         pet_name = request.POST.get('pet_name')
         pet_type = request.POST.get('pet_type')
-        appointment_date = request.POST.get('appointment_date')
         symptoms = request.POST.get('symptoms')
 
         doctor = get_object_or_404(CustomUser, id=doctor_id, role='DOCTOR')
+
+        # Проверяем, что выбранный слот действительно свободен
+        slot_datetime = datetime.fromisoformat(appointment_date)
+
+        # Проверка: существует ли такое свободное окно
+        slot_exists = DoctorSchedule.objects.filter(
+            doctor=doctor,
+            date=slot_datetime.date(),
+            start_time=slot_datetime.time(),
+            is_available=True
+        ).exists()
+
+        # Проверка: не занят ли уже этот слот
+        slot_busy = Appointment.objects.filter(
+            doctor=doctor,
+            appointment_date=slot_datetime,
+            status__in=['PENDING', 'CONFIRMED']
+        ).exists()
+
+        if not slot_exists or slot_busy:
+            messages.error(request, 'Выбранное время уже недоступно. Пожалуйста, выберите другое.')
+            doctors = CustomUser.objects.filter(role='DOCTOR')
+            return render(request, 'main/appointment_form.html', {'doctors': doctors})
+
+        # Проверка, что дата в будущем
+        if slot_datetime <= datetime.now():
+            messages.error(request, 'Нельзя записаться на прошедшее время')
+            doctors = CustomUser.objects.filter(role='DOCTOR')
+            return render(request, 'main/appointment_form.html', {'doctors': doctors})
 
         appointment = Appointment.objects.create(
             client=request.user,
             doctor=doctor,
             pet_name=pet_name,
             pet_type=pet_type,
-            appointment_date=appointment_date,
+            appointment_date=slot_datetime,
             symptoms=symptoms
         )
         messages.success(request, 'Запись успешно создана!')
@@ -35,7 +111,6 @@ def appointment_create(request):
 
     doctors = CustomUser.objects.filter(role='DOCTOR')
     return render(request, 'main/appointment_form.html', {'doctors': doctors})
-
 
 @login_required
 def my_appointments(request):
