@@ -6,9 +6,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-vetclinic-key-2024'
 
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+# Домен Railway
+RAILWAY_DOMAIN = "web-production-2d83b1.up.railway.app"
+
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    RAILWAY_DOMAIN,
+    '*',  # временно для теста
+]
+
+# CSRF доверенные источники
+CSRF_TRUSTED_ORIGINS = [
+    'https://' + RAILWAY_DOMAIN,
+    'http://' + RAILWAY_DOMAIN,
+    'https://web-production-2d83b1.up.railway.app',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -99,5 +114,5 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-# Настройки для Railway
+# Railway
 PORT = os.environ.get('PORT', 8000)
