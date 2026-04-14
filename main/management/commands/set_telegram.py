@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
 from users.models import CustomUser
 
-
 class Command(BaseCommand):
     help = 'Set telegram_id for user'
 
@@ -13,8 +12,10 @@ class Command(BaseCommand):
         username = options['username']
         telegram_id = options['telegram_id']
 
-        user = CustomUser.objects.get(username=username)
-        user.telegram_id = telegram_id
-        user.save()
-
-        self.stdout.write(self.style.SUCCESS(f'Telegram ID set for {username}'))
+        try:
+            user = CustomUser.objects.get(username=username)
+            user.telegram_id = telegram_id
+            user.save()
+            self.stdout.write(self.style.SUCCESS(f'Telegram ID set for {username}'))
+        except CustomUser.DoesNotExist:
+            self.stdout.write(self.style.ERROR(f'User {username} not found'))

@@ -402,6 +402,7 @@ def update_appointment_status(request, pk):
 
             messages.success(request, f'Статус приёма изменён на {appointment.get_status_display()}')
         else:
+
             messages.error(request, 'Неверный статус')
 
     return redirect('my_appointments')
