@@ -1,67 +1,24 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
+from django.http import JsonResponse
 from django.utils import timezone
+from datetime import datetime, timedelta
 from .models import News, Appointment, Review, DoctorSchedule
 from users.models import CustomUser
-from django.http import JsonResponse
-from datetime import datetime, timedelta
-from .models import DoctorSchedule, Appointment
+from .telegram_bot import notify_doctor_about_appointment, notify_client_about_status_change
+
 
 def index(request):
     news_list = News.objects.filter(is_active=True)[:6]
     return render(request, 'main/index.html', {'news_list': news_list})
 
 
-def get_available_slots(request, doctor_id):
-
-    try:
-        doctor = CustomUser.objects.get(id=doctor_id, role='DOCTOR')
-    except CustomUser.DoesNotExist:
-        return JsonResponse([], safe=False)
-
-    start_date = datetime.now().date()
-    end_date = start_date + timedelta(days=30)
-
-    free_slots = DoctorSchedule.objects.filter(
-        doctor=doctor,
-        date__gte=start_date,
-        date__lte=end_date,
-        is_available=True
-    ).order_by('date', 'start_time')
-
-    appointments = Appointment.objects.filter(
-        doctor=doctor,
-        appointment_date__date__gte=start_date,
-        appointment_date__date__lte=end_date,
-        status__in=['PENDING', 'CONFIRMED']
-    )
-
-    busy_slots = set()
-    for app in appointments:
-        busy_slots.add(app.appointment_date.strftime('%Y-%m-%d %H:%M'))
-
-    available_slots = []
-    now = datetime.now()
-
-    for slot in free_slots:
-        slot_datetime = datetime.combine(slot.date, slot.start_time)
-        slot_str = slot_datetime.strftime('%Y-%m-%d %H:%M')
-
-        if slot_datetime > now and slot_str not in busy_slots:
-            available_slots.append({
-                'value': slot_datetime.isoformat(),
-                'label': slot.date.strftime('%d.%m.%Y') + ' ' + slot.start_time.strftime('%H:%M')
-            })
-
-    return JsonResponse(available_slots, safe=False)
-
-
 @login_required
 def appointment_create(request):
     if request.method == 'POST':
         doctor_id = request.POST.get('doctor_id')
-        appointment_date = request.POST.get('appointment_date')  # теперь приходит из select
+        appointment_date = request.POST.get('appointment_date')
         pet_name = request.POST.get('pet_name')
         pet_type = request.POST.get('pet_type')
         symptoms = request.POST.get('symptoms')
@@ -103,20 +60,26 @@ def appointment_create(request):
             pet_name=pet_name,
             pet_type=pet_type,
             appointment_date=slot_datetime,
-            symptoms=symptoms
+            symptoms=symptoms,
+            status='PENDING'
         )
+
+        # Отправляем уведомление врачу в Telegram
+        notify_doctor_about_appointment(appointment)
+
         messages.success(request, 'Запись успешно создана!')
         return redirect('my_appointments')
 
     doctors = CustomUser.objects.filter(role='DOCTOR')
     return render(request, 'main/appointment_form.html', {'doctors': doctors})
 
+
 @login_required
 def my_appointments(request):
     if request.user.role == 'DOCTOR':
-        appointments = Appointment.objects.filter(doctor=request.user)
+        appointments = Appointment.objects.filter(doctor=request.user).order_by('-appointment_date')
     else:
-        appointments = Appointment.objects.filter(client=request.user)
+        appointments = Appointment.objects.filter(client=request.user).order_by('-appointment_date')
     return render(request, 'main/appointments.html', {'appointments': appointments})
 
 
@@ -138,6 +101,10 @@ def cancel_appointment(request, pk):
     else:
         appointment.status = 'CANCELLED'
         appointment.save()
+
+        # Отправляем уведомление врачу
+        notify_client_about_status_change(appointment)
+
         messages.success(request, 'Запись успешно отменена')
 
     return redirect('my_appointments')
@@ -159,12 +126,35 @@ def reschedule_appointment(request, pk):
             appointment.appointment_date = new_date
             appointment.status = 'RESCHEDULED'
             appointment.save()
+
+            # Отправляем уведомление клиенту
+            notify_client_about_status_change(appointment)
+
             messages.success(request, f'Запись перенесена на {new_date}')
         else:
             messages.error(request, 'Укажите новую дату и время')
         return redirect('my_appointments')
 
     return render(request, 'main/reschedule.html', {'appointment': appointment})
+
+
+@login_required
+def complete_appointment(request, pk):
+    """Отметить приём как проведённый (только врач)"""
+    appointment = get_object_or_404(Appointment, pk=pk, doctor=request.user)
+
+    if appointment.status == 'COMPLETED':
+        messages.warning(request, 'Этот приём уже отмечен как проведённый')
+    else:
+        appointment.status = 'COMPLETED'
+        appointment.save()
+
+        # Отправляем уведомление клиенту
+        notify_client_about_status_change(appointment)
+
+        messages.success(request, f'Приём с {appointment.client.username} отмечен как проведённый')
+
+    return redirect('my_appointments')
 
 
 def reviews_list(request):
@@ -241,7 +231,7 @@ def create_news(request):
             messages.error(request, 'Заполните заголовок и содержание')
             return render(request, 'main/news_form.html')
 
-        news = News.objects.create(
+        News.objects.create(
             title=title,
             content=content,
             image=image,
@@ -341,19 +331,55 @@ def delete_user(request, pk):
     return redirect('profile')
 
 
-@login_required
-def complete_appointment(request, pk):
-    """Отметить приём как проведённый (только врач)"""
-    appointment = get_object_or_404(Appointment, pk=pk, doctor=request.user)
+def get_available_slots(request, doctor_id):
+    """Возвращает свободные окна врача на ближайшие 30 дней (API)"""
 
-    if appointment.status == 'COMPLETED':
-        messages.warning(request, 'Этот приём уже отмечен как проведённый')
-    else:
-        appointment.status = 'COMPLETED'
-        appointment.save()
-        messages.success(request, f'Приём с {appointment.client.username} отмечен как проведённый')
+    try:
+        doctor = CustomUser.objects.get(id=doctor_id, role='DOCTOR')
+    except CustomUser.DoesNotExist:
+        return JsonResponse([], safe=False)
 
-    return redirect('my_appointments')
+    # Начало и конец периода (30 дней)
+    start_date = datetime.now().date()
+    end_date = start_date + timedelta(days=30)
+
+    # Получаем все свободные окна врача
+    free_slots = DoctorSchedule.objects.filter(
+        doctor=doctor,
+        date__gte=start_date,
+        date__lte=end_date,
+        is_available=True
+    ).order_by('date', 'start_time')
+
+    # Получаем уже занятые записи
+    appointments = Appointment.objects.filter(
+        doctor=doctor,
+        appointment_date__date__gte=start_date,
+        appointment_date__date__lte=end_date,
+        status__in=['PENDING', 'CONFIRMED']
+    )
+
+    # Создаем множество занятых слотов
+    busy_slots = set()
+    for app in appointments:
+        busy_slots.add(app.appointment_date.strftime('%Y-%m-%d %H:%M'))
+
+    # Формируем список свободных слотов
+    available_slots = []
+    now = datetime.now()
+
+    for slot in free_slots:
+        slot_datetime = datetime.combine(slot.date, slot.start_time)
+        slot_str = slot_datetime.strftime('%Y-%m-%d %H:%M')
+
+        # Проверяем, что слот в будущем и не занят
+        if slot_datetime > now and slot_str not in busy_slots:
+            available_slots.append({
+                'value': slot_datetime.isoformat(),
+                'label': slot.date.strftime('%d.%m.%Y') + ' ' + slot.start_time.strftime('%H:%M')
+            })
+
+    return JsonResponse(available_slots, safe=False)
 
 
 @login_required
@@ -370,9 +396,12 @@ def update_appointment_status(request, pk):
             if notes:
                 appointment.notes = notes
             appointment.save()
+
+            # Отправляем уведомление клиенту
+            notify_client_about_status_change(appointment)
+
             messages.success(request, f'Статус приёма изменён на {appointment.get_status_display()}')
         else:
             messages.error(request, 'Неверный статус')
 
     return redirect('my_appointments')
-

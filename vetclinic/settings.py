@@ -118,3 +118,5 @@ SIMPLE_JWT = {
 }
 
 PORT = os.environ.get('PORT', 8000)
+
+TELEGRAM_BOT_TOKEN = '7978034157:AAGvK8qsuznRhO-JRkJPfhmWuG8hlLWCu0w'
