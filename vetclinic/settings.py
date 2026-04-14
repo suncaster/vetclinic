@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-vetclinic-key-2024'
 
-DEBUG = False
+DEBUG = True  # Временно для диагностики
 
 # Домен Railway
 RAILWAY_DOMAIN = "web-production-2d83b1.up.railway.app"
