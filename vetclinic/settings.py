@@ -13,16 +13,13 @@ DEBUG = True
 # Домен Railway
 RAILWAY_DOMAIN = "web-production-2d83b1.up.railway.app"
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    RAILWAY_DOMAIN,
-    '*',
-]
+ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://' + RAILWAY_DOMAIN,
-    'http://' + RAILWAY_DOMAIN,
+    'https://vetclinicivanov.up.railway.app',
+    'https://web-production-2d83b1.up.railway.app',
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
 ]
 
 INSTALLED_APPS = [
