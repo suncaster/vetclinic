@@ -1,8 +1,8 @@
-<h3 class="glass-card" style="margin-top: 30px; padding: 20px;">⚙️ Админ панель</h3>
+<h3 class="glass-card" style="margin-top: 30px; padding: 20px;">Админ панель</h3>
 
 <div class="glass-card" style="margin-top: 20px;">
-    <h4>📰 Управление новостями</h4>
-    <a href="{% url 'create_news' %}" class="btn btn-primary">+ Создать новость</a>
+    <h4>Управление новостями</h4>
+    <a href="{% url 'create_news' %}" class="btn btn-primary">Создать новость</a>
     
     <div class="glass-table" style="margin-top: 20px;">
         <table>
@@ -15,8 +15,8 @@
                     <td>{{ news.title }}</td>
                     <td>{{ news.created_at|date:"d.m.Y" }}</td>
                     <td>
-                        <a href="{% url 'edit_news' news.id %}" class="btn">✏️</a>
-                        <a href="{% url 'delete_news' news.id %}" class="btn delete-confirm">🗑️</a>
+                        <a href="{% url 'edit_news' news.id %}" class="btn">Редактировать</a>
+                        <a href="{% url 'delete_news' news.id %}" class="btn delete-confirm">Удалить</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -26,15 +26,15 @@
 </div>
 
 <div class="glass-card" style="margin-top: 20px;">
-    <h4>⭐ Модерация отзывов</h4>
+    <h4>Модерация отзывов</h4>
     {% for review in reviews_pending %}
     <div style="border-bottom: 1px solid var(--border-white); padding: 15px;">
-        <p><strong>{{ review.client.username }}</strong> - ⭐ {{ review.rating }}/5</p>
+        <p><strong>{{ review.client.username }}</strong> - Оценка: {{ review.rating }}/5</p>
         <p>{{ review.comment }}</p>
         <form method="post" action="{% url 'moderate_review' review.id %}" style="display: inline;">
             {% csrf_token %}
-            <button type="submit" name="action" value="approve" class="btn">✅ Одобрить</button>
-            <button type="submit" name="action" value="reject" class="btn">❌ Отклонить</button>
+            <button type="submit" name="action" value="approve" class="btn">Одобрить</button>
+            <button type="submit" name="action" value="reject" class="btn">Отклонить</button>
         </form>
     </div>
     {% empty %}
@@ -43,7 +43,7 @@
 </div>
 
 <div class="glass-card" style="margin-top: 20px;">
-    <h4>👥 Управление пользователями</h4>
+    <h4>Управление пользователями</h4>
     <div class="glass-table">
         <table>
             <thead><tr><th>Имя</th><th>Роль</th><th>Email</th><th>Действия</th></tr></thead>
@@ -54,7 +54,7 @@
                     <td>{{ u.get_role_display }}</td>
                     <td>{{ u.email }}</td>
                     <td>
-                        <a href="{% url 'delete_user' u.id %}" class="btn delete-confirm">🗑️</a>
+                        <a href="{% url 'delete_user' u.id %}" class="btn delete-confirm">Удалить</a>
                     </td>
                 </tr>
                 {% endfor %}
