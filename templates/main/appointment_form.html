@@ -45,50 +45,65 @@
 </div>
 
 <script>
-document.getElementById('doctorSelect').addEventListener('change', function() {
-    const doctorId = this.value;
+    console.log("Скрипт загружен!");
+
+    const doctorSelect = document.getElementById('doctorSelect');
     const slotSelect = document.getElementById('slotSelect');
     const submitBtn = document.getElementById('submitBtn');
-    
-    if (!doctorId) {
-        slotSelect.innerHTML = '<option value="">-- Сначала выберите врача --</option>';
+
+    if (!doctorSelect) console.error("doctorSelect не найден");
+    if (!slotSelect) console.error("slotSelect не найден");
+    if (!submitBtn) console.error("submitBtn не найден");
+
+    doctorSelect.addEventListener('change', function() {
+        const doctorId = this.value;
+        console.log("Выбран врач ID:", doctorId);
+
+        if (!doctorId) {
+            slotSelect.innerHTML = '<option value="">-- Сначала выберите врача --</option>';
+            slotSelect.disabled = true;
+            submitBtn.disabled = true;
+            return;
+        }
+
+        slotSelect.innerHTML = '<option value="">Загрузка свободных окон...</option>';
         slotSelect.disabled = true;
         submitBtn.disabled = true;
-        return;
-    }
-    
-    // Показываем загрузку
-    slotSelect.innerHTML = '<option value="">Загрузка свободных окон...</option>';
-    slotSelect.disabled = true;
-    submitBtn.disabled = true;
-    
-    // Загружаем свободные окна
-    fetch(`/api/available-slots/${doctorId}/`)
-        .then(response => response.json())
-        .then(slots => {
-            if (slots.length === 0) {
-                slotSelect.innerHTML = '<option value="">Нет свободных окон на ближайшие 30 дней</option>';
-                slotSelect.disabled = true;
-                submitBtn.disabled = true;
-            } else {
-                let options = '<option value="">-- Выберите время --</option>';
-                slots.forEach(slot => {
-                    options += `<option value="${slot.value}">${slot.label}</option>`;
-                });
-                slotSelect.innerHTML = options;
-                slotSelect.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            slotSelect.innerHTML = '<option value="">Ошибка загрузки. Попробуйте позже.</option>';
-            slotSelect.disabled = true;
-        });
-});
 
-document.getElementById('slotSelect').addEventListener('change', function() {
-    const submitBtn = document.getElementById('submitBtn');
-    submitBtn.disabled = !this.value;
-});
+        const url = `/api/available-slots/${doctorId}/`;
+        console.log("Запрос к API:", url);
+
+        fetch(url)
+            .then(response => {
+                console.log("Ответ получен, статус:", response.status);
+                return response.json();
+            })
+            .then(slots => {
+                console.log("Получены слоты:", slots);
+
+                if (slots.length === 0) {
+                    slotSelect.innerHTML = '<option value="">Нет свободных окон на ближайшие 30 дней</option>';
+                    slotSelect.disabled = true;
+                    submitBtn.disabled = true;
+                } else {
+                    let options = '<option value="">-- Выберите время --</option>';
+                    slots.forEach(slot => {
+                        options += `<option value="${slot.value}">${slot.label}</option>`;
+                    });
+                    slotSelect.innerHTML = options;
+                    slotSelect.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error("Ошибка при загрузке:", error);
+                slotSelect.innerHTML = '<option value="">Ошибка загрузки. Попробуйте позже.</option>';
+                slotSelect.disabled = true;
+            });
+    });
+
+    slotSelect.addEventListener('change', function() {
+        submitBtn.disabled = !this.value;
+        console.log("Выбран слот:", this.value);
+    });
 </script>
 {% endblock %}

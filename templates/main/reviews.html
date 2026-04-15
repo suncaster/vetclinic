@@ -1,25 +1,47 @@
-{% extends 'base.html' %}
+кг{% extends 'base.html' %}
 {% block title %}Отзывы{% endblock %}
 
 {% block content %}
-<div class="glass-card" style="margin-bottom: 30px;">
+<div class="glass-card" style="margin-bottom: 10px;">
     <h2>Отзывы наших клиентов</h2>
 </div>
 
 <div class="news-grid">
     {% for review in reviews %}
     <div class="glass-card">
-        <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 15px;">
             <strong>{{ review.client.username }}</strong>
-            <span>Оценка: {{ review.rating }}/5</span>
+            <div>
+                {% for i in "12345"|make_list %}
+                    {% if forloop.counter <= review.rating %}
+                        <span style="color: #FFD700; font-size: 18px;">★</span>
+                    {% else %}
+                        <span style="color: #ccc; font-size: 18px;">★</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
         </div>
-        <p>{{ review.comment }}</p>
-        <small style="opacity: 0.7;">{{ review.created_at|date:"d.m.Y" }}</small>
+        <p style="margin-bottom: 15px; line-height: 1.5;">{{ review.comment }}</p>
+        <small style="opacity: 0.7; display: block; text-align: right;">{{ review.created_at|default:review.created_at }}</small>
     </div>
     {% empty %}
     <div class="glass-card" style="text-align: center;">
         <p>Пока нет отзывов. Будьте первым!</p>
+        {% if user.is_authenticated and user.role == 'CLIENT' %}
+            <a href="{% url 'my_appointments' %}" class="btn btn-primary" style="margin-top: 15px;">Оставить отзыв</a>
+        {% endif %}
     </div>
     {% endfor %}
 </div>
+
+{% if not is_placeholder and reviews %}
+<div class="glass-card" style="margin-top: 30px; text-align: center;">
+    <p>Хотите оставить отзыв? Запишитесь на приём и после визита вы сможете поделиться впечатлениями!</p>
+    {% if user.is_authenticated and user.role == 'CLIENT' %}
+        <a href="{% url 'appointment_create' %}" class="btn btn-primary" style="margin-top: 10px;">Записаться на приём</a>
+    {% elif not user.is_authenticated %}
+        <a href="{% url 'login' %}" class="btn btn-primary" style="margin-top: 10px;">Войдите, чтобы оставить отзыв</a>
+    {% endif %}
+</div>
+{% endif %}
 {% endblock %}

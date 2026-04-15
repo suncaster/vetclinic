@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Ветклиника Доктор Айболит{% endblock %}</title>
+    <title>{% block title %}Ветклиника Доктор Иванов{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
     <header class="header">
         <div class="logo">
-            <img src="{% static 'img/logo.svg' %}" alt="Логотип">
+            <img id="logoImg" src="{% static 'img/logo_light.svg' %}" alt="Логотип">
         </div>
         
         <nav class="nav-menu">

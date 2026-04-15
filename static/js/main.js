@@ -1,9 +1,24 @@
 // Строгий Glassmorphism без эмодзи
 document.addEventListener('DOMContentLoaded', function() {
-    // Theme Toggle
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
 
+    // Функция смены логотипа
+    function updateLogo(theme) {
+        const logoImg = document.getElementById('logoImg');
+        if (logoImg) {
+            if (theme === 'dark') {
+                logoImg.src = '/static/img/logo_dark.svg';
+            } else {
+                logoImg.src = '/static/img/logo_light.svg';
+            }
+        }
+    }
+
+    // Применяем логотип при загрузке
+    updateLogo(savedTheme);
+
+    // Кнопка переключения темы
     const themeToggle = document.createElement('button');
     themeToggle.className = 'theme-toggle';
     themeToggle.innerHTML = savedTheme === 'light' ? '☾' : '☼';
@@ -22,6 +37,9 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('theme', newTheme);
         themeToggle.innerHTML = newTheme === 'light' ? '☾' : '☼';
 
+        // Меняем логотип
+        updateLogo(newTheme);
+
         const glassElements = document.querySelectorAll('.glass-card, .news-card, .header');
         glassElements.forEach(el => {
             el.style.animation = 'none';
@@ -30,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 10);
         });
     });
+
 
     // Intersection Observer для анимации
     const observerOptions = {

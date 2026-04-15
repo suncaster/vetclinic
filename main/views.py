@@ -6,7 +6,6 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from .models import News, Appointment, Review, DoctorSchedule
 from users.models import CustomUser
-from .telegram_bot import notify_doctor_about_appointment, notify_client_about_status_change
 
 
 def index(request):
@@ -25,8 +24,9 @@ def appointment_create(request):
 
         doctor = get_object_or_404(CustomUser, id=doctor_id, role='DOCTOR')
 
-        # Проверяем, что выбранный слот действительно свободен
-        slot_datetime = datetime.fromisoformat(appointment_date)
+        # Преобразуем строку в datetime с часовым поясом
+        slot_datetime = timezone.make_aware(datetime.fromisoformat(appointment_date))
+        now = timezone.now()
 
         # Проверка: существует ли такое свободное окно
         slot_exists = DoctorSchedule.objects.filter(
@@ -49,7 +49,7 @@ def appointment_create(request):
             return render(request, 'main/appointment_form.html', {'doctors': doctors})
 
         # Проверка, что дата в будущем
-        if slot_datetime <= datetime.now():
+        if slot_datetime <= now:
             messages.error(request, 'Нельзя записаться на прошедшее время')
             doctors = CustomUser.objects.filter(role='DOCTOR')
             return render(request, 'main/appointment_form.html', {'doctors': doctors})
@@ -64,8 +64,6 @@ def appointment_create(request):
             status='PENDING'
         )
 
-        # Отправляем уведомление врачу в Telegram
-        notify_doctor_about_appointment(appointment)
 
         messages.success(request, 'Запись успешно создана!')
         return redirect('my_appointments')
@@ -88,12 +86,10 @@ def cancel_appointment(request, pk):
     """Отмена записи на приём"""
     appointment = get_object_or_404(Appointment, pk=pk)
 
-    # Проверяем права: только клиент может отменить свою запись
     if appointment.client != request.user:
         messages.error(request, 'Вы можете отменить только свои записи')
         return redirect('my_appointments')
 
-    # Проверяем, что запись ещё не прошла и не отменена
     if appointment.status == 'CANCELLED':
         messages.warning(request, 'Эта запись уже отменена')
     elif appointment.status == 'COMPLETED':
@@ -102,8 +98,6 @@ def cancel_appointment(request, pk):
         appointment.status = 'CANCELLED'
         appointment.save()
 
-        # Отправляем уведомление врачу
-        notify_client_about_status_change(appointment)
 
         messages.success(request, 'Запись успешно отменена')
 
@@ -112,10 +106,9 @@ def cancel_appointment(request, pk):
 
 @login_required
 def reschedule_appointment(request, pk):
-    """Перенос записи на приём (для врача)"""
+    """Перенос записи на приём (только врач)"""
     appointment = get_object_or_404(Appointment, pk=pk)
 
-    # Проверяем права: только врач может перенести запись
     if request.user.role != 'DOCTOR' or appointment.doctor != request.user:
         messages.error(request, 'Только врач может переносить записи')
         return redirect('my_appointments')
@@ -127,8 +120,6 @@ def reschedule_appointment(request, pk):
             appointment.status = 'RESCHEDULED'
             appointment.save()
 
-            # Отправляем уведомление клиенту
-            notify_client_about_status_change(appointment)
 
             messages.success(request, f'Запись перенесена на {new_date}')
         else:
@@ -149,8 +140,6 @@ def complete_appointment(request, pk):
         appointment.status = 'COMPLETED'
         appointment.save()
 
-        # Отправляем уведомление клиенту
-        notify_client_about_status_change(appointment)
 
         messages.success(request, f'Приём с {appointment.client.username} отмечен как проведённый')
 
@@ -160,7 +149,31 @@ def complete_appointment(request, pk):
 def reviews_list(request):
     """Список одобренных отзывов"""
     approved_reviews = Review.objects.filter(status='APPROVED')
-    return render(request, 'main/reviews.html', {'reviews': approved_reviews})
+
+    if not approved_reviews:
+        placeholder_reviews = [
+            {
+                'client': {'username': 'Анна С.'},
+                'rating': 5,
+                'comment': 'Отличная клиника! Врач очень внимательный, всё подробно объяснил.',
+                'created_at': '15.03.2026'
+            },
+            {
+                'client': {'username': 'Дмитрий В.'},
+                'rating': 5,
+                'comment': 'Спасибо доктору за спасение нашей собаки!',
+                'created_at': '10.03.2026'
+            },
+            {
+                'client': {'username': 'Елена К.'},
+                'rating': 4,
+                'comment': 'Хорошая клиника, чисто, современное оборудование.',
+                'created_at': '05.03.2026'
+            },
+        ]
+        return render(request, 'main/reviews.html', {'reviews': placeholder_reviews, 'is_placeholder': True})
+
+    return render(request, 'main/reviews.html', {'reviews': approved_reviews, 'is_placeholder': False})
 
 
 @login_required
@@ -168,12 +181,10 @@ def create_review(request, appointment_id):
     """Создание отзыва (только клиент с завершённым приёмом)"""
     appointment = get_object_or_404(Appointment, id=appointment_id, client=request.user)
 
-    # Проверяем, что приём завершён
     if appointment.status != 'COMPLETED':
         messages.error(request, 'Отзыв можно оставить только после проведённого приёма')
         return redirect('my_appointments')
 
-    # Проверяем, не оставлял ли уже отзыв
     if hasattr(appointment, 'review'):
         messages.error(request, 'Вы уже оставили отзыв на этот приём')
         return redirect('my_appointments')
@@ -289,7 +300,6 @@ def add_schedule(request):
             messages.error(request, 'Заполните все поля')
             return render(request, 'main/schedule_form.html')
 
-        # Проверяем, не существует ли уже такое окно
         existing = DoctorSchedule.objects.filter(
             doctor=request.user,
             date=date,
@@ -333,17 +343,14 @@ def delete_user(request, pk):
 
 def get_available_slots(request, doctor_id):
     """Возвращает свободные окна врача на ближайшие 30 дней (API)"""
-
     try:
         doctor = CustomUser.objects.get(id=doctor_id, role='DOCTOR')
     except CustomUser.DoesNotExist:
         return JsonResponse([], safe=False)
 
-    # Начало и конец периода (30 дней)
     start_date = datetime.now().date()
     end_date = start_date + timedelta(days=30)
 
-    # Получаем все свободные окна врача
     free_slots = DoctorSchedule.objects.filter(
         doctor=doctor,
         date__gte=start_date,
@@ -351,7 +358,6 @@ def get_available_slots(request, doctor_id):
         is_available=True
     ).order_by('date', 'start_time')
 
-    # Получаем уже занятые записи
     appointments = Appointment.objects.filter(
         doctor=doctor,
         appointment_date__date__gte=start_date,
@@ -359,20 +365,18 @@ def get_available_slots(request, doctor_id):
         status__in=['PENDING', 'CONFIRMED']
     )
 
-    # Создаем множество занятых слотов
     busy_slots = set()
     for app in appointments:
         busy_slots.add(app.appointment_date.strftime('%Y-%m-%d %H:%M'))
 
-    # Формируем список свободных слотов
     available_slots = []
-    now = datetime.now()
+    now = timezone.now()
 
     for slot in free_slots:
         slot_datetime = datetime.combine(slot.date, slot.start_time)
+        slot_datetime = timezone.make_aware(slot_datetime)
         slot_str = slot_datetime.strftime('%Y-%m-%d %H:%M')
 
-        # Проверяем, что слот в будущем и не занят
         if slot_datetime > now and slot_str not in busy_slots:
             available_slots.append({
                 'value': slot_datetime.isoformat(),
@@ -397,12 +401,9 @@ def update_appointment_status(request, pk):
                 appointment.notes = notes
             appointment.save()
 
-            # Отправляем уведомление клиенту
-            notify_client_about_status_change(appointment)
 
             messages.success(request, f'Статус приёма изменён на {appointment.get_status_display()}')
         else:
-
             messages.error(request, 'Неверный статус')
 
     return redirect('my_appointments')

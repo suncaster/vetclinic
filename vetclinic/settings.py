@@ -117,6 +117,10 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-PORT = os.environ.get('PORT', 8000)
-
-TELEGRAM_BOT_TOKEN = '7978034157:AAGvK8qsuznRhO-JRkJPfhmWuG8hlLWCu0w'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.yandex.ru'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'iraache@yandex.ru'
+EMAIL_HOST_PASSWORD = 'strangerthings023'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
